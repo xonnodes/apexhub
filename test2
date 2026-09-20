@@ -1,0 +1,1620 @@
+#!/usr/bin/env bash
+
+# ============================================================
+#              ☁️ APEX CLOULD — HUB v1.0.0
+# ============================================================
+
+set -o pipefail
+
+VERSION="1.0.0"
+DISCORD="https://discord.gg/6Vwvgf9Haw"
+
+PANEL_DIR="/var/www/pterodactyl"
+PANEL_SERVICE="pteroq.service"
+
+# ---------------- COLORS ----------------
+
+N='\033[0m'
+W='\033[1;37m'
+G='\033[1;32m'
+R='\033[1;31m'
+Y='\033[1;33m'
+C='\033[1;36m'
+B='\033[1;34m'
+M='\033[1;35m'
+BC='\033[1;37m'
+BG='\033[1;32m'
+
+# ---------------- HELPERS ----------------
+
+pause() {
+    echo
+    read -rp " Press Enter to continue..." _
+}
+
+success() {
+    echo -e "${G}[✓]${N} $1"
+}
+
+error() {
+    echo -e "${R}[✗]${N} $1"
+}
+
+info() {
+    echo -e "${C}[i]${N} $1"
+}
+
+warning() {
+    echo -e "${Y}[!]${N} $1"
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+get_title() {
+    clear
+    echo -e "${BC}╔══════════════════════════════════════════════════════════════╗${N}"
+    echo -e "${BC}║${BG}              ☁️  APEX CLOULD — HUB  ☁️                    ${BC}║${N}"
+    echo -e "${BC}║${BG}                         v${VERSION}                              ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+}
+
+# ============================================================
+#                 BLUEPRINT / EXTENSION MANAGER
+# ============================================================
+
+BLUEPRINT_URL="https://github.com/nobita329/Nobita-Cloud/raw/refs/heads/main/thame/Extension"
+
+BLUEPRINT_NAMES=(
+"adminauditlogs.blueprint"
+"huxregister.blueprint"
+"loader.blueprint"
+"lyrdyannounce.blueprint"
+"mclogs.blueprint"
+"mcplugins.blueprint"
+"mctools.blueprint"
+"minecraftplayermanager.blueprint"
+"playerlisting.blueprint"
+"resourcealerts.blueprint"
+"resourcemanager.blueprint"
+"serverbackgrounds.blueprint"
+"serversplitter.blueprint"
+"simplefavicons.blueprint"
+"snowflakes.blueprint"
+"sociallogin.blueprint"
+"startupchanger.blueprint"
+"subdomains.blueprint"
+"tawkto.blueprint"
+"versionchanger.blueprint"
+"pteromonaco.blueprint"
+"urldownloader.blueprint"
+"consolelogs.blueprint"
+"laravellogs.blueprint"
+"vanillatweaks.blueprint"
+"modrinthbrowser.blueprint"
+"nopagination.blueprint"
+"activitypurges.blueprint"
+"redirect.blueprint"
+"simplefooters.blueprint"
+"minecraftpluginmanager.blueprint"
+"subdomainmanager.blueprint"
+"serverimporter.blueprint"
+"mcplayer.blueprint"
+"pterodactylramburst.blueprint"
+)
+
+install_blueprint() {
+    get_title
+    echo -e "${BC}║${N}                    📥 INSTALL BLUEPRINT                     ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if ! command_exists blueprint; then
+        error "Blueprint CLI is not installed."
+        pause
+        return
+    fi
+
+    local tmpdir="/tmp/apex-blueprints"
+
+    rm -rf "$tmpdir"
+    mkdir -p "$tmpdir"
+
+    local failed=0
+
+    info "Installing Blueprint extensions..."
+    echo
+
+    for file in "${BLUEPRINT_NAMES[@]}"; do
+        echo -ne " ${file} ... "
+
+        if curl -fsSL "${BLUEPRINT_URL}/${file}" -o "${tmpdir}/${file}"; then
+            if blueprint -i "${tmpdir}/${file}" >/tmp/apex_blueprint_install.log 2>&1; then
+                echo -e "${G}OK${N}"
+            else
+                echo -e "${R}FAILED${N}"
+                failed=1
+            fi
+        else
+            echo -e "${R}DOWNLOAD FAILED${N}"
+            failed=1
+        fi
+    done
+
+    rm -rf "$tmpdir"
+
+    echo
+
+    if [[ "$failed" -eq 0 ]]; then
+        success "All Blueprint extensions installed successfully."
+    else
+        error "Some Blueprint extensions failed."
+    fi
+
+    pause
+}
+
+remove_blueprint() {
+    get_title
+    echo -e "${BC}║${N}                     🗑️ REMOVE BLUEPRINT                     ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if ! command_exists blueprint; then
+        error "Blueprint CLI is not installed."
+        pause
+        return
+    fi
+
+    read -rp " Enter Blueprint filename ❯ " file
+
+    [[ "$file" != *.blueprint ]] && file="${file}.blueprint"
+
+    if [[ -z "$file" ]]; then
+        error "No Blueprint specified."
+        pause
+        return
+    fi
+
+    warning "This will remove $file"
+    read -rp " Continue? [y/N] ❯ " confirm
+
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        info "Cancelled."
+        pause
+        return
+    fi
+
+    if blueprint -r "${file%.blueprint}" >/tmp/apex_blueprint_remove.log 2>&1; then
+        success "Blueprint removed successfully."
+    else
+        error "Blueprint removal failed."
+        cat /tmp/apex_blueprint_remove.log
+    fi
+
+    pause
+}
+
+change_blueprint() {
+    get_title
+    echo -e "${BC}║${N}                    🔄 CHANGE BLUEPRINT                      ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if ! command_exists blueprint; then
+        error "Blueprint CLI is not installed."
+        pause
+        return
+    fi
+
+    read -rp " Enter Blueprint filename ❯ " file
+    read -rp " Enter Blueprint URL ❯ " url
+
+    if [[ -z "$file" || -z "$url" ]]; then
+        error "Filename and URL are required."
+        pause
+        return
+    fi
+
+    [[ "$file" != *.blueprint ]] && file="${file}.blueprint"
+
+    local tmp="/tmp/$file"
+
+    if ! curl -fsSL "$url" -o "$tmp"; then
+        error "Blueprint download failed."
+        rm -f "$tmp"
+        pause
+        return
+    fi
+
+    if blueprint -i "$tmp" >/tmp/apex_blueprint_change.log 2>&1; then
+        success "Blueprint installed successfully."
+    else
+        error "Blueprint installation failed."
+        cat /tmp/apex_blueprint_change.log
+    fi
+
+    rm -f "$tmp"
+    pause
+}
+
+blueprint_menu() {
+    while true; do
+        get_title
+        echo -e "${BC}║${N}                 📦 BLUEPRINT / EXTENSION                    ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+        echo -e " ${W}[1]${N} 📥 Install Blueprint"
+        echo -e " ${W}[2]${N} 🗑️  Remove Blueprint"
+        echo -e " ${W}[3]${N} 🔄 Change Blueprint"
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_blueprint ;;
+            2) remove_blueprint ;;
+            3) change_blueprint ;;
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+    done
+}
+
+# ============================================================
+#                  PTERODACTYL PANEL
+# ============================================================
+
+install_composer() {
+
+    if command_exists composer; then
+        success "Composer already installed."
+        return 0
+    fi
+
+    info "Installing Composer..."
+
+    if curl -fsSL https://getcomposer.org/installer | php \
+        -- --install-dir=/usr/local/bin --filename=composer; then
+
+        chmod +x /usr/local/bin/composer
+        success "Composer installed."
+        return 0
+    fi
+
+    error "Composer installation failed."
+    return 1
+}
+
+install_pterodactyl() {
+
+    get_title
+    echo -e "${BC}║${N}                📦 INSTALL PTERODACTYL PANEL                ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl is already installed."
+        pause
+        return
+    fi
+
+    if [[ ! -f /etc/os-release ]]; then
+        error "Unable to detect operating system."
+        pause
+        return
+    fi
+
+    . /etc/os-release
+
+    if [[ "$ID" != "ubuntu" ]]; then
+        error "This installer currently supports Ubuntu only."
+        pause
+        return
+    fi
+
+    echo -e "${C}Pterodactyl Panel setup${N}"
+    echo
+
+    read -rp " Panel domain/FQDN ❯ " PANEL_DOMAIN
+
+    if [[ -z "$PANEL_DOMAIN" ]]; then
+        error "Panel domain is required."
+        pause
+        return
+    fi
+
+    echo
+    warning "The Panel installer will install PHP, Nginx, MariaDB, Redis and Composer."
+    read -rp " Continue? [y/N] ❯ " confirm
+
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        info "Installation cancelled."
+        pause
+        return
+    fi
+
+    echo
+    info "Updating package lists..."
+
+    if ! apt-get update; then
+        error "APT update failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Installing required packages..."
+
+    local packages=(
+        ca-certificates
+        curl
+        tar
+        unzip
+        git
+        nginx
+        mariadb-server
+        redis-server
+        php8.3
+        php8.3-cli
+        php8.3-fpm
+        php8.3-gd
+        php8.3-mysql
+        php8.3-mbstring
+        php8.3-bcmath
+        php8.3-xml
+        php8.3-curl
+        php8.3-zip
+        php8.3-opcache
+        php8.3-tokenizer
+    )
+
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"; then
+        error "Required package installation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Enabling required services..."
+
+    systemctl enable --now mariadb
+    systemctl enable --now redis-server
+    systemctl enable --now php8.3-fpm
+    systemctl enable --now nginx
+
+    if ! systemctl is-active --quiet mariadb; then
+        error "MariaDB failed to start."
+        pause
+        return
+    fi
+
+    if ! systemctl is-active --quiet redis-server; then
+        error "Redis failed to start."
+        pause
+        return
+    fi
+
+    if ! systemctl is-active --quiet php8.3-fpm; then
+        error "PHP-FPM failed to start."
+        pause
+        return
+    fi
+
+    echo
+    info "Creating Pterodactyl database..."
+
+    local DB_PASSWORD
+
+    DB_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 24)"
+
+    if ! mysql -u root <<SQL
+CREATE DATABASE IF NOT EXISTS panel;
+CREATE USER IF NOT EXISTS 'pterodactyl'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER 'pterodactyl'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON panel.* TO 'pterodactyl'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
+    then
+        error "MariaDB configuration failed."
+        pause
+        return
+    fi
+
+    success "Database configured."
+
+    echo
+    info "Downloading Pterodactyl Panel..."
+
+    mkdir -p "$PANEL_DIR"
+    cd "$PANEL_DIR" || return
+
+    if ! curl -fLo panel.tar.gz \
+        https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz; then
+
+        error "Pterodactyl Panel download failed."
+        rm -rf "$PANEL_DIR"
+        pause
+        return
+    fi
+
+    if ! tar -xzf panel.tar.gz; then
+        error "Pterodactyl archive extraction failed."
+        rm -rf "$PANEL_DIR"
+        pause
+        return
+    fi
+
+    rm -f panel.tar.gz
+
+    chmod -R 755 storage bootstrap/cache
+
+    echo
+    if ! install_composer; then
+        error "Composer setup failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Installing PHP dependencies..."
+
+    export COMPOSER_ALLOW_SUPERUSER=1
+
+    if ! composer install --no-dev --optimize-autoloader --no-interaction; then
+        error "Composer dependency installation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Creating environment file..."
+
+    cp .env.example .env
+
+    if ! php artisan key:generate --force; then
+        error "Application key generation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring Panel environment..."
+
+    # Pterodactyl's official environment command is interactive.
+    # The user completes the Panel-specific prompts here.
+    if ! php artisan p:environment:setup; then
+        error "Panel environment setup failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring Panel database..."
+
+    if ! php artisan p:environment:database; then
+        error "Panel database configuration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring Panel mail..."
+
+    if ! php artisan p:environment:mail; then
+        error "Panel mail configuration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Running database migrations..."
+
+    if ! php artisan migrate --seed --force; then
+        error "Database migration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Setting Panel permissions..."
+
+    chown -R www-data:www-data "$PANEL_DIR"
+
+    echo
+    info "Creating scheduler..."
+
+    rm -f /etc/cron.d/pterodactyl
+
+    cat > /etc/cron.d/pterodactyl <<EOF
+* * * * * www-data php ${PANEL_DIR}/artisan schedule:run >> /dev/null 2>&1
+EOF
+
+    chmod 644 /etc/cron.d/pterodactyl
+
+    echo
+    info "Creating queue worker..."
+
+    cat > "/etc/systemd/system/${PANEL_SERVICE}" <<EOF
+[Unit]
+Description=Pterodactyl Queue Worker
+After=redis-server.service
+Requires=redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php ${PANEL_DIR}/artisan queue:work --queue=high,standard,low --sleep=3 --tries=3
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+
+    if ! systemctl enable --now "$PANEL_SERVICE"; then
+        error "Pterodactyl queue worker failed to start."
+        systemctl status "$PANEL_SERVICE" --no-pager
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring Nginx..."
+
+    rm -f /etc/nginx/sites-enabled/default
+    rm -f /etc/nginx/sites-enabled/pterodactyl.conf
+
+    cat > /etc/nginx/sites-available/pterodactyl.conf <<EOF
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name ${PANEL_DOMAIN};
+
+    root ${PANEL_DIR}/public;
+    index index.php;
+
+    access_log /var/log/nginx/pterodactyl.app-access.log;
+    error_log /var/log/nginx/pterodactyl.app-error.log error;
+
+    client_max_body_size 100m;
+    client_body_timeout 120s;
+
+    sendfile off;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+
+        include fastcgi_params;
+
+        fastcgi_param PHP_VALUE "upload_max_filesize = 100M \n post_max_size=100M";
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param HTTP_PROXY "";
+
+        fastcgi_intercept_errors off;
+        fastcgi_buffer_size 16k;
+        fastcgi_buffers 4 16k;
+        fastcgi_connect_timeout 300;
+        fastcgi_send_timeout 300;
+        fastcgi_read_timeout 300;
+
+        include /etc/nginx/fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOF
+
+    ln -sf \
+        /etc/nginx/sites-available/pterodactyl.conf \
+        /etc/nginx/sites-enabled/pterodactyl.conf
+
+    if ! nginx -t; then
+        error "Nginx configuration test failed."
+        nginx -t
+        pause
+        return
+    fi
+
+    if ! systemctl restart nginx; then
+        error "Nginx failed to restart."
+        pause
+        return
+    fi
+
+    echo
+    info "Creating first administrator..."
+
+    cd "$PANEL_DIR" || return
+
+    if ! php artisan p:user:make; then
+        error "Administrator creation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Running final checks..."
+
+    local failed=0
+
+    if systemctl is-active --quiet nginx; then
+        success "Nginx is running."
+    else
+        error "Nginx is not running."
+        failed=1
+    fi
+
+    if systemctl is-active --quiet mariadb; then
+        success "MariaDB is running."
+    else
+        error "MariaDB is not running."
+        failed=1
+    fi
+
+    if systemctl is-active --quiet redis-server; then
+        success "Redis is running."
+    else
+        error "Redis is not running."
+        failed=1
+    fi
+
+    if systemctl is-active --quiet php8.3-fpm; then
+        success "PHP-FPM is running."
+    else
+        error "PHP-FPM is not running."
+        failed=1
+    fi
+
+    if systemctl is-active --quiet "$PANEL_SERVICE"; then
+        success "Pterodactyl queue worker is running."
+    else
+        error "Pterodactyl queue worker is not running."
+        failed=1
+    fi
+
+    if [[ -f "$PANEL_DIR/.env" ]]; then
+        success "Pterodactyl configuration exists."
+    else
+        error "Pterodactyl .env file is missing."
+        failed=1
+    fi
+
+    echo
+
+    if [[ "$failed" -eq 0 ]]; then
+        success "Pterodactyl Panel installed successfully."
+        echo
+        echo -e " ${C}Panel URL:${N} http://${PANEL_DOMAIN}"
+        echo
+        warning "The database password was generated automatically."
+        info "Database: panel"
+        info "Database user: pterodactyl"
+        info "Database password: ${DB_PASSWORD}"
+        echo
+        warning "Save the database password somewhere secure."
+    else
+        error "Installation completed with errors."
+        info "Check the service status before using the Panel."
+    fi
+
+    pause
+}
+
+pterodactyl_status() {
+    get_title
+    echo -e "${BC}║${N}                    📊 PANEL STATUS                         ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    if systemctl is-active --quiet nginx; then
+        echo -e " Nginx       ${G}● Running${N}"
+    else
+        echo -e " Nginx       ${R}● Stopped${N}"
+    fi
+
+    if systemctl is-active --quiet mariadb; then
+        echo -e " MariaDB     ${G}● Running${N}"
+    else
+        echo -e " MariaDB     ${R}● Stopped${N}"
+    fi
+
+    if systemctl is-active --quiet redis-server; then
+        echo -e " Redis       ${G}● Running${N}"
+    else
+        echo -e " Redis       ${R}● Stopped${N}"
+    fi
+
+    if systemctl is-active --quiet php8.3-fpm; then
+        echo -e " PHP-FPM     ${G}● Running${N}"
+    else
+        echo -e " PHP-FPM     ${R}● Stopped${N}"
+    fi
+
+    if systemctl is-active --quiet "$PANEL_SERVICE"; then
+        echo -e " Queue       ${G}● Running${N}"
+    else
+        echo -e " Queue       ${R}● Stopped${N}"
+    fi
+
+    if nginx -t >/dev/null 2>&1; then
+        echo -e " Nginx CFG   ${G}● Valid${N}"
+    else
+        echo -e " Nginx CFG   ${R}● Invalid${N}"
+    fi
+
+    pause
+}
+
+pterodactyl_information() {
+    get_title
+    echo -e "${BC}║${N}                  ℹ️ PANEL INFORMATION                      ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd "$PANEL_DIR" || return
+
+    echo -e " ${C}Panel Path:${N}     $PANEL_DIR"
+
+    if [[ -f .env ]]; then
+        local app_url
+        app_url="$(grep '^APP_URL=' .env | cut -d= -f2-)"
+        echo -e " ${C}Panel URL:${N}      ${app_url:-Unknown}"
+    fi
+
+    if command_exists php; then
+        echo -e " ${C}PHP:${N}            $(php -v | head -n1)"
+    fi
+
+    if command_exists composer; then
+        echo -e " ${C}Composer:${N}       $(composer --version 2>/dev/null | head -n1)"
+    fi
+
+    echo
+    echo -e " ${C}Services:${N}"
+
+    systemctl is-active --quiet nginx \
+        && echo -e "  ${G}✓${N} Nginx" \
+        || echo -e "  ${R}✗${N} Nginx"
+
+    systemctl is-active --quiet mariadb \
+        && echo -e "  ${G}✓${N} MariaDB" \
+        || echo -e "  ${R}✗${N} MariaDB"
+
+    systemctl is-active --quiet redis-server \
+        && echo -e "  ${G}✓${N} Redis" \
+        || echo -e "  ${R}✗${N} Redis"
+
+    systemctl is-active --quiet "$PANEL_SERVICE" \
+        && echo -e "  ${G}✓${N} Queue Worker" \
+        || echo -e "  ${R}✗${N} Queue Worker"
+
+    pause
+}
+
+pterodactyl_menu() {
+    while true; do
+        get_title
+        echo -e "${BC}║${N}                    🐦 PTERODACTYL                         ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+        echo -e " ${W}[1]${N} 📦 Install Pterodactyl Panel"
+        echo -e " ${W}[2]${N} 📊 Panel Status"
+        echo -e " ${W}[3]${N} ℹ️  Panel Information"
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_pterodactyl ;;
+            2) pterodactyl_status ;;
+            3) pterodactyl_information ;;
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+    done
+}
+
+# ============================================================
+#                         USER MANAGER
+# ============================================================
+
+create_admin_user() {
+    get_title
+    echo -e "${BC}║${N}                    ➕ CREATE ADMIN USER                     ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd "$PANEL_DIR" || return
+    php artisan p:user:make
+
+    pause
+}
+
+create_normal_user() {
+    get_title
+    echo -e "${BC}║${N}                    ➕ CREATE NORMAL USER                    ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd "$PANEL_DIR" || return
+    php artisan p:user:make
+
+    pause
+}
+
+list_users() {
+    get_title
+    echo -e "${BC}║${N}                       📋 USERS                              ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd "$PANEL_DIR" || return
+
+    php artisan tinker --execute='
+$users = App\Models\User::all();
+foreach ($users as $user) {
+    echo $user->id . " | " . $user->email . " | " . $user->username . PHP_EOL;
+}
+'
+
+    pause
+}
+
+delete_user() {
+    get_title
+    echo -e "${BC}║${N}                       🗑️ DELETE USER                         ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    read -rp " Enter User ID ❯ " user_id
+
+    if [[ ! "$user_id" =~ ^[0-9]+$ ]]; then
+        error "Invalid User ID."
+        pause
+        return
+    fi
+
+    warning "This permanently deletes user ID $user_id."
+    read -rp " Continue? [y/N] ❯ " confirm
+
+    [[ ! "$confirm" =~ ^[Yy]$ ]] && {
+        info "Cancelled."
+        pause
+        return
+    }
+
+    cd "$PANEL_DIR" || return
+
+    if php artisan tinker --execute="
+\$user = App\Models\User::find($user_id);
+if (\$user) {
+    \$user->delete();
+    echo 'DELETED';
+} else {
+    echo 'NOT_FOUND';
+}
+" | grep -q "DELETED"; then
+        success "User deleted successfully."
+    else
+        error "User was not found or could not be deleted."
+    fi
+
+    pause
+}
+
+user_menu() {
+    while true; do
+        get_title
+        echo -e "${BC}║${N}                       👤 USER MANAGER                       ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+        echo -e " ${W}[1]${N} ➕ Create Admin User"
+        echo -e " ${W}[2]${N} ➕ Create Normal User"
+        echo -e " ${W}[3]${N} 📋 List Users"
+        echo -e " ${W}[4]${N} 🗑️  Delete User"
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) create_admin_user ;;
+            2) create_normal_user ;;
+            3) list_users ;;
+            4) delete_user ;;
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+    done
+}
+
+# ============================================================
+#                     SERVER INFORMATION
+# ============================================================
+
+server_information() {
+
+    while true; do
+
+        get_title
+
+        echo -e "${BC}║${N}                    🖥️ SERVER INFORMATION                    ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+
+        local hostname_value
+        local os_value
+        local kernel_value
+        local cpu_value
+        local cores_value
+        local ram_value
+        local disk_value
+        local uptime_value
+        local ipv4_value
+        local private_ipv4
+        local ipv6_value
+
+        hostname_value="$(hostname 2>/dev/null || echo "Unknown")"
+
+        if [[ -f /etc/os-release ]]; then
+            os_value="$(. /etc/os-release && echo "$PRETTY_NAME")"
+        else
+            os_value="Unknown"
+        fi
+
+        kernel_value="$(uname -r 2>/dev/null || echo "Unknown")"
+
+        cpu_value="$(
+            lscpu 2>/dev/null |
+            awk -F: '/Model name/ {
+                gsub(/^[ \t]+/, "", $2);
+                print $2;
+                exit
+            }'
+        )"
+
+        [[ -z "$cpu_value" ]] && cpu_value="Unknown"
+
+        cores_value="$(nproc 2>/dev/null || echo "Unknown")"
+
+        ram_value="$(free -h 2>/dev/null | awk '/^Mem:/ {print $3 " / " $2}')"
+        [[ -z "$ram_value" ]] && ram_value="Unknown"
+
+        disk_value="$(df -h / 2>/dev/null | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')"
+        [[ -z "$disk_value" ]] && disk_value="Unknown"
+
+        uptime_value="$(uptime -p 2>/dev/null || echo "Unknown")"
+
+        ipv4_value="$(
+            curl -4 -fsSL --max-time 5 https://api.ipify.org 2>/dev/null ||
+            echo "Unavailable"
+        )"
+
+        private_ipv4="$(
+            ip -4 addr 2>/dev/null |
+            awk '/inet / && $2 !~ /^127\./ {
+                split($2,a,"/");
+                if (
+                    a[1] ~ /^10\./ ||
+                    a[1] ~ /^192\.168\./ ||
+                    a[1] ~ /^172\.(1[6-9]|2[0-9]|3[0-1])\./
+                ) {
+                    print a[1];
+                    exit
+                }
+            }'
+        )"
+
+        [[ -z "$private_ipv4" ]] && private_ipv4="None detected"
+
+        ipv6_value="$(
+            curl -6 -fsSL --max-time 5 https://api64.ipify.org 2>/dev/null ||
+            echo "Unavailable"
+        )"
+
+        echo -e " ${C}Hostname:${N}      $hostname_value"
+        echo -e " ${C}OS:${N}            $os_value"
+        echo -e " ${C}Kernel:${N}        $kernel_value"
+        echo -e " ${C}CPU:${N}           $cpu_value"
+        echo -e " ${C}CPU Cores:${N}     $cores_value"
+        echo -e " ${C}RAM:${N}           $ram_value"
+        echo -e " ${C}Disk:${N}          $disk_value"
+        echo -e " ${C}Uptime:${N}        $uptime_value"
+        echo -e " ${C}Public IPv4:${N}   $ipv4_value"
+        echo -e " ${C}Private IPv4:${N}  $private_ipv4"
+        echo -e " ${C}IPv6:${N}          $ipv6_value"
+
+        echo
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+
+    done
+}
+
+# ============================================================
+#                       NETWORK TOOLS
+# ============================================================
+
+ping_cloudflare() {
+    get_title
+    echo -e "${BC}║${N}                    📡 PING CLOUDFLARE                      ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+    ping -c 4 -W 2 1.1.1.1
+    pause
+}
+
+ping_google() {
+    get_title
+    echo -e "${BC}║${N}                      📡 PING GOOGLE                        ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+    ping -c 4 -W 2 8.8.8.8
+    pause
+}
+
+dns_test() {
+    get_title
+    echo -e "${BC}║${N}                       🌍 DNS TEST                           ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if command_exists dig; then
+        dig example.com
+    elif command_exists nslookup; then
+        nslookup example.com
+    else
+        warning "DNS tools are not installed."
+        echo "Install dnsutils with:"
+        echo "apt-get install dnsutils"
+    fi
+
+    pause
+}
+
+network_interfaces() {
+    get_title
+    echo -e "${BC}║${N}                  🔌 NETWORK INTERFACES                      ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+    ip addr
+    pause
+}
+
+routing_table() {
+    get_title
+    echo -e "${BC}║${N}                     🛣️ ROUTING TABLE                       ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+    ip route
+    pause
+}
+
+download_speed_test() {
+    get_title
+    echo -e "${BC}║${N}                   📥 DOWNLOAD SPEED                         ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if ! command_exists curl; then
+        error "curl is not installed."
+        pause
+        return
+    fi
+
+    info "Starting download test..."
+    echo
+
+    curl -L -o /dev/null \
+        -w "\nSpeed: %{speed_download} bytes/sec\n" \
+        --max-time 20 \
+        "https://speed.cloudflare.com/__down?bytes=10000000"
+
+    pause
+}
+
+full_network_diagnostic() {
+    get_title
+    echo -e "${BC}║${N}                🔍 FULL NETWORK DIAGNOSTIC                   ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    echo -e "${Y}== Public IPv4 ==${N}"
+    curl -4 -fsSL --max-time 5 https://api.ipify.org 2>/dev/null || echo "Unavailable"
+
+    echo
+    echo -e "${Y}== Cloudflare ==${N}"
+    ping -c 3 -W 2 1.1.1.1
+
+    echo
+    echo -e "${Y}== Google ==${N}"
+    ping -c 3 -W 2 8.8.8.8
+
+    echo
+    echo -e "${Y}== Interfaces ==${N}"
+    ip -br addr
+
+    echo
+    echo -e "${Y}== Routes ==${N}"
+    ip route
+
+    echo
+    echo -e "${Y}== DNS ==${N}"
+
+    if command_exists dig; then
+        dig example.com +short
+    else
+        getent hosts example.com
+    fi
+
+    echo
+    echo -e "${Y}== Default Gateway ==${N}"
+    ip route | awk '/default/ {print $3; exit}'
+
+    echo
+    success "Network diagnostic completed."
+
+    pause
+}
+
+network_menu() {
+    while true; do
+
+        get_title
+
+        echo -e "${BC}║${N}                     🌐 NETWORK TOOLS                       ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+        echo -e " ${W}[1]${N} 📡 Ping Cloudflare"
+        echo -e " ${W}[2]${N} 📡 Ping Google"
+        echo -e " ${W}[3]${N} 🌍 DNS Test"
+        echo -e " ${W}[4]${N} 🔌 Network Interfaces"
+        echo -e " ${W}[5]${N} 🛣️  Routing Table"
+        echo -e " ${W}[6]${N} 📥 Download Speed Test"
+        echo -e " ${W}[7]${N} 🔍 Full Network Diagnostic"
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) ping_cloudflare ;;
+            2) ping_google ;;
+            3) dns_test ;;
+            4) network_interfaces ;;
+            5) routing_table ;;
+            6) download_speed_test ;;
+            7) full_network_diagnostic ;;
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+
+    done
+}
+
+# ============================================================
+#                     PACKAGE MANAGEMENT
+# ============================================================
+
+install_cloudflared() {
+
+    get_title
+
+    echo -e "${BC}║${N}                  ☁️ INSTALL CLOUDFLARED                    ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    local arch
+    arch="$(uname -m)"
+
+    case "$arch" in
+        x86_64)
+            CLOUDFLARED_ARCH="amd64"
+            ;;
+        aarch64|arm64)
+            CLOUDFLARED_ARCH="arm64"
+            ;;
+        armv7l)
+            CLOUDFLARED_ARCH="arm"
+            ;;
+        *)
+            error "Unsupported CPU architecture: $arch"
+            pause
+            return
+            ;;
+    esac
+
+    info "Installing Cloudflared..."
+
+    if curl -fL \
+        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH}" \
+        -o /usr/local/bin/cloudflared; then
+
+        chmod +x /usr/local/bin/cloudflared
+
+        if command_exists cloudflared; then
+            success "Cloudflared installed successfully."
+        else
+            error "Cloudflared installation failed."
+        fi
+    else
+        error "Cloudflared download failed."
+    fi
+
+    pause
+}
+
+install_tailscale() {
+
+    get_title
+
+    echo -e "${BC}║${N}                   🔗 INSTALL TAILSCALE                     ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    info "Installing Tailscale..."
+
+    if curl -fsSL https://tailscale.com/install.sh | sh; then
+
+        systemctl enable --now tailscaled 2>/dev/null
+
+        if systemctl is-active --quiet tailscaled; then
+            success "Tailscale installed successfully."
+            echo
+            info "Run: tailscale up"
+        else
+            error "Tailscale installed but service is not running."
+        fi
+
+    else
+        error "Tailscale installation failed."
+    fi
+
+    pause
+}
+
+uninstall_pterodactyl() {
+
+    get_title
+
+    echo -e "${BC}║${N}               🗑️ UNINSTALL PTERODACTYL                    ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]]; then
+        error "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    warning "This will remove the Pterodactyl Panel."
+    echo
+    echo "The following will be removed:"
+    echo " - Pterodactyl Panel files"
+    echo " - Pterodactyl queue worker"
+    echo " - Pterodactyl cron"
+    echo " - Pterodactyl Nginx configuration"
+    echo " - Pterodactyl database"
+    echo " - Pterodactyl database user"
+    echo
+    warning "This does NOT automatically remove Docker, PHP, MariaDB, Redis or Nginx."
+    echo
+
+    read -rp "Type UNINSTALL to continue ❯ " confirm
+
+    if [[ "$confirm" != "UNINSTALL" ]]; then
+        info "Uninstall cancelled."
+        pause
+        return
+    fi
+
+    echo
+    info "Stopping Pterodactyl queue worker..."
+
+    systemctl disable --now "$PANEL_SERVICE" 2>/dev/null || true
+
+    rm -f "/etc/systemd/system/${PANEL_SERVICE}"
+    systemctl daemon-reload
+    systemctl reset-failed "$PANEL_SERVICE" 2>/dev/null || true
+
+    echo
+    info "Removing Pterodactyl cron..."
+
+    rm -f /etc/cron.d/pterodactyl
+
+    echo
+    info "Removing Nginx configuration..."
+
+    rm -f /etc/nginx/sites-enabled/pterodactyl.conf
+    rm -f /etc/nginx/sites-available/pterodactyl.conf
+
+    if nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx 2>/dev/null || true
+    fi
+
+    echo
+    info "Removing Pterodactyl database..."
+
+    if command_exists mysql; then
+
+        mysql -u root <<'SQL'
+DROP DATABASE IF EXISTS panel;
+DROP USER IF EXISTS 'pterodactyl'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
+
+    fi
+
+    echo
+    info "Removing Panel files..."
+
+    rm -rf "$PANEL_DIR"
+
+    echo
+
+    if [[ ! -d "$PANEL_DIR" ]] &&
+       [[ ! -f "/etc/systemd/system/${PANEL_SERVICE}" ]] &&
+       [[ ! -f "/etc/cron.d/pterodactyl" ]] &&
+       [[ ! -f "/etc/nginx/sites-available/pterodactyl.conf" ]]; then
+
+        success "Pterodactyl Panel uninstalled successfully."
+
+    else
+
+        error "Pterodactyl uninstall completed with remaining files."
+
+    fi
+
+    pause
+}
+
+packages_menu() {
+
+    while true; do
+
+        get_title
+
+        echo -e "${BC}║${N}                    📦 INSTALL PACKAGES                     ${BC}║${N}"
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo
+        echo -e " ${W}[1]${N} ☁️  Install Cloudflared"
+        echo -e " ${W}[2]${N} 🔗 Install Tailscale"
+        echo -e " ${W}[3]${N} 🗑️  Uninstall Pterodactyl Panel"
+        echo -e " ${W}[0]${N} ↩️  Back"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_cloudflared ;;
+            2) install_tailscale ;;
+            3) uninstall_pterodactyl ;;
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+
+    done
+}
+
+# ============================================================
+#                    APEX HUB INFORMATION
+# ============================================================
+
+hub_information() {
+
+    get_title
+
+    echo -e "${BC}║${N}                  ℹ️  APEX HUB INFORMATION                    ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    echo -e " ${C}APEX CLOULD${N}"
+    echo " Control Hub"
+    echo -e " Version : ${G}${VERSION}${N}"
+    echo -e " Status  : ${G}● Online${N}"
+    echo " Brand   : APEX CLOULD"
+    echo " Discord : $DISCORD"
+
+    echo
+    echo -e " ${W}[0]${N} ↩️  Back"
+    echo
+
+    while true; do
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            0) return ;;
+            *) error "Invalid option."; sleep 1 ;;
+        esac
+
+    done
+}
+
+# ============================================================
+#                         QUICK LINKS
+# ============================================================
+
+quick_links() {
+
+    get_title
+
+    echo -e "${BC}║${N}                       🔗 QUICK LINKS                        ${BC}║${N}"
+    echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+    echo
+
+    echo -e " ${W}[1]${N} 💬 APEX CLOULD Discord"
+    echo -e " ${W}[0]${N} ↩️  Back"
+    echo
+
+    read -rp " Select an option ❯ " choice
+
+    case "$choice" in
+
+        1)
+            echo
+            echo "$DISCORD"
+            pause
+            ;;
+
+        0)
+            return
+            ;;
+
+        *)
+            error "Invalid option."
+            sleep 1
+            ;;
+
+    esac
+}
+
+# ============================================================
+#                         MAIN MENU
+# ============================================================
+
+main_menu() {
+
+    while true; do
+
+        get_title
+
+        echo -e "${BC}║${N}"
+        echo -e " ${W}[1]${N} 📦 Blueprint / Extension Manager"
+        echo -e " ${W}[2]${N} 🐦 Pterodactyl Manager"
+        echo -e " ${W}[3]${N} 👤 User Manager"
+        echo -e " ${W}[4]${N} 🖥️  Server Information"
+        echo -e " ${W}[5]${N} 🌐 Network Tools"
+        echo -e " ${W}[6]${N} 📦 Install Packages"
+        echo -e " ${W}[7]${N} ℹ️  APEX Hub Information"
+        echo -e " ${W}[8]${N} 🔗 Quick Links"
+        echo -e " ${W}[0]${N} 🚪 Exit"
+
+        echo -e "${BC}╠══════════════════════════════════════════════════════════════╣${N}"
+        echo -e " ${G}● Online${N}    💬 ${DISCORD}"
+        echo -e "${BC}╚══════════════════════════════════════════════════════════════╝${N}"
+        echo
+
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+
+            1)
+                blueprint_menu
+                ;;
+
+            2)
+                pterodactyl_menu
+                ;;
+
+            3)
+                user_menu
+                ;;
+
+            4)
+                server_information
+                ;;
+
+            5)
+                network_menu
+                ;;
+
+            6)
+                packages_menu
+                ;;
+
+            7)
+                hub_information
+                ;;
+
+            8)
+                quick_links
+                ;;
+
+            0)
+                clear
+                echo -e "${G}Thanks for using APEX CLOULD.${N}"
+                exit 0
+                ;;
+
+            *)
+                error "Invalid option."
+                sleep 1
+                ;;
+
+        esac
+
+    done
+}
+
+# ============================================================
+#                         ROOT CHECK
+# ============================================================
+
+if [[ "$EUID" -ne 0 ]]; then
+    echo -e "${R}[✗]${N} This script must be run as root."
+    echo "Run it with sudo or as root."
+    exit 1
+fi
+
+main_menu
