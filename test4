@@ -1,0 +1,1687 @@
+#!/usr/bin/env bash
+
+# ============================================================
+# ☁️ APEX CLOULD — CONTROL HUB
+# Version: 1.0.0
+# ============================================================
+
+set -u
+
+VERSION="1.0.0"
+BRAND="APEX CLOULD"
+DISCORD="https://discord.gg/6Vwvgf9Haw"
+
+BLUEPRINT_URL="https://github.com/nobita329/Nobita-Cloud/raw/refs/heads/main/thame/Extension"
+
+# ============================================================
+# BLUEPRINT LIST
+# ============================================================
+
+BLUEPRINT_NAMES=(
+    "adminauditlogs.blueprint"
+    "huxregister.blueprint"
+    "loader.blueprint"
+    "lyrdyannounce.blueprint"
+    "mclogs.blueprint"
+    "mcplugins.blueprint"
+    "mctools.blueprint"
+    "minecraftplayermanager.blueprint"
+    "playerlisting.blueprint"
+    "resourcealerts.blueprint"
+    "resourcemanager.blueprint"
+    "serverbackgrounds.blueprint"
+    "serversplitter.blueprint"
+    "simplefavicons.blueprint"
+    "snowflakes.blueprint"
+    "sociallogin.blueprint"
+    "startupchanger.blueprint"
+    "subdomains.blueprint"
+    "tawkto.blueprint"
+    "versionchanger.blueprint"
+    "pteromonaco.blueprint"
+    "urldownloader.blueprint"
+    "consolelogs.blueprint"
+    "laravellogs.blueprint"
+    "vanillatweaks.blueprint"
+    "modrinthbrowser.blueprint"
+    "nopagination.blueprint"
+    "activitypurges.blueprint"
+    "redirect.blueprint"
+    "simplefooters.blueprint"
+    "minecraftpluginmanager.blueprint"
+    "subdomainmanager.blueprint"
+    "serverimporter.blueprint"
+    "mcplayer.blueprint"
+    "pterodactylramburst.blueprint"
+)
+
+# ============================================================
+# COLORS
+# ============================================================
+
+BLUE='\033[38;5;39m'
+CYAN='\033[38;5;45m'
+GREEN='\033[38;5;42m'
+RED='\033[38;5;196m'
+YELLOW='\033[38;5;220m'
+WHITE='\033[97m'
+GRAY='\033[90m'
+RESET='\033[0m'
+BOLD='\033[1m'
+
+# ============================================================
+# BASIC FUNCTIONS
+# ============================================================
+
+pause() {
+    echo
+    read -rp "Press Enter to continue..."
+}
+
+clear_screen() {
+    clear
+}
+
+success() {
+    echo -e "${GREEN}[✓]${RESET} $1"
+}
+
+error_msg() {
+    echo -e "${RED}[✗]${RESET} $1"
+}
+
+info() {
+    echo -e "${CYAN}[i]${RESET} $1"
+}
+
+warning() {
+    echo -e "${YELLOW}[!]${RESET} $1"
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        error_msg "This hub must be run as root."
+        exit 1
+    fi
+}
+
+# ============================================================
+# HEADER
+# ============================================================
+
+get_title() {
+    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BLUE}║${RESET}              ☁️  ${BOLD}${WHITE}APEX CLOULD — HUB${RESET}  ☁️                 ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET}                         ${CYAN}v${VERSION}${RESET}                              ${BLUE}║${RESET}"
+    echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+}
+
+# ============================================================
+# MAIN MENU
+# ============================================================
+
+main_menu() {
+    while true; do
+        clear_screen
+        get_title
+
+        echo
+        echo -e " ${WHITE}[1]${RESET} 📦 Blueprint / Extension Manager"
+        echo -e " ${WHITE}[2]${RESET} 🐦 Pterodactyl Manager"
+        echo -e " ${WHITE}[3]${RESET} 👤 User Manager"
+        echo -e " ${WHITE}[4]${RESET} 🖥️  Server Information"
+        echo -e " ${WHITE}[5]${RESET} 🌐 Network Tools"
+        echo -e " ${WHITE}[6]${RESET} 📦 Packages"
+        echo -e " ${WHITE}[7]${RESET} ℹ️  APEX Hub Information"
+        echo -e " ${WHITE}[8]${RESET} 🔗 Quick Links"
+        echo -e " ${WHITE}[0]${RESET} 🚪 Exit"
+
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo -e " ${GREEN}● Online${RESET}    💬 ${CYAN}${DISCORD}${RESET}"
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) blueprint_menu ;;
+            2) pterodactyl_menu ;;
+            3) user_menu ;;
+            4) server_information ;;
+            5) network_menu ;;
+            6) packages_menu ;;
+            7) hub_information ;;
+            8) quick_links ;;
+            0)
+                clear_screen
+                echo -e "${GREEN}Thanks for using ${BRAND}.${RESET}"
+                exit 0
+                ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# BLUEPRINT DISPLAY
+# ============================================================
+
+blueprint_name() {
+    local index="$1"
+    local name="${BLUEPRINT_NAMES[$index]}"
+    echo "${name%.blueprint}"
+}
+
+show_blueprints() {
+    local total=${#BLUEPRINT_NAMES[@]}
+    local rows=$(( (total + 1) / 2 ))
+    local i
+    local left
+    local right
+    local left_num
+    local right_num
+    local left_name
+    local right_name
+
+    echo
+    echo -e "${BOLD}${WHITE}SELECT A BLUEPRINT:${RESET}"
+    echo
+
+    for ((i=0; i<rows; i++)); do
+        left=$((i * 2))
+        right=$((left + 1))
+
+        left_num=$((left + 1))
+        left_name=$(blueprint_name "$left")
+
+        printf " ${CYAN}%2d${RESET}  %-31s" "$left_num" "$left_name"
+
+        if (( right < total )); then
+            right_num=$((right + 1))
+            right_name=$(blueprint_name "$right")
+            printf " ${CYAN}%2d${RESET}  %-31s" "$right_num" "$right_name"
+        fi
+
+        echo
+    done
+
+    echo
+    echo -e " ${RED}0${RESET}  Exit"
+    echo
+}
+
+# ============================================================
+# BLUEPRINT INSTALL
+# ============================================================
+
+install_blueprint() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                  📥 INSTALL BLUEPRINT                   ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+    if ! command_exists blueprint; then
+        error_msg "Blueprint CLI is not installed."
+        echo
+        echo "Install Blueprint CLI first, then run this option again."
+        pause
+        return
+    fi
+
+    show_blueprints
+
+    read -rp " 👉 Enter choice: " choice
+
+    if [[ "$choice" == "0" ]]; then
+        return
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        error_msg "Invalid selection."
+        pause
+        return
+    fi
+
+    if (( choice < 1 || choice > ${#BLUEPRINT_NAMES[@]} )); then
+        error_msg "Invalid blueprint number."
+        pause
+        return
+    fi
+
+    local index=$((choice - 1))
+    local file="${BLUEPRINT_NAMES[$index]}"
+    local tmp="/tmp/$file"
+
+    echo
+    info "Selected: ${file}"
+    echo
+    info "Downloading blueprint..."
+
+    if ! curl -fL --retry 3 -o "$tmp" "$BLUEPRINT_URL/$file"; then
+        error_msg "Blueprint download failed."
+        rm -f "$tmp"
+        pause
+        return
+    fi
+
+    echo
+    info "Installing blueprint..."
+
+    if blueprint -i "$tmp"; then
+        success "Installation completed successfully."
+        rm -f "$tmp"
+    else
+        error_msg "Installation failed."
+        echo "Reason: Blueprint CLI returned an error."
+        rm -f "$tmp"
+    fi
+
+    pause
+}
+
+# ============================================================
+# BLUEPRINT REMOVE
+# ============================================================
+
+remove_blueprint() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                   🗑️  REMOVE BLUEPRINT                   ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+    if ! command_exists blueprint; then
+        error_msg "Blueprint CLI is not installed."
+        pause
+        return
+    fi
+
+    show_blueprints
+
+    read -rp " 👉 Enter choice: " choice
+
+    if [[ "$choice" == "0" ]]; then
+        return
+    fi
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        error_msg "Invalid selection."
+        pause
+        return
+    fi
+
+    if (( choice < 1 || choice > ${#BLUEPRINT_NAMES[@]} )); then
+        error_msg "Invalid blueprint number."
+        pause
+        return
+    fi
+
+    local index=$((choice - 1))
+    local file="${BLUEPRINT_NAMES[$index]}"
+    local blueprint_without_ext="${file%.blueprint}"
+
+    echo
+    warning "You are about to remove: $blueprint_without_ext"
+    read -rp "Type YES to continue: " confirm
+
+    if [[ "$confirm" != "YES" ]]; then
+        info "Cancelled."
+        pause
+        return
+    fi
+
+    echo
+    info "Removing blueprint..."
+
+    if blueprint -r "$blueprint_without_ext"; then
+        success "Blueprint removed successfully."
+    else
+        error_msg "Removal failed."
+        echo "Reason: Blueprint CLI returned an error."
+    fi
+
+    pause
+}
+
+# ============================================================
+# BLUEPRINT MANAGER
+# ============================================================
+
+blueprint_menu() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}              📦 BLUEPRINT / EXTENSION MANAGER            ${WHITE}║${RESET}"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo
+        echo -e " ${WHITE}[1]${RESET} 📥 Install Blueprint"
+        echo -e " ${WHITE}[2]${RESET} 🗑️  Remove Blueprint"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+        echo
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_blueprint ;;
+            2) remove_blueprint ;;
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# PTERODACTYL INSTALL
+# ============================================================
+
+install_pterodactyl() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                📦 INSTALL PTERODACTYL PANEL              ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /etc/os-release ]]; then
+        error_msg "Unable to detect operating system."
+        pause
+        return
+    fi
+
+    source /etc/os-release
+
+    if [[ "${ID:-}" != "ubuntu" ]]; then
+        error_msg "This installer currently supports Ubuntu only."
+        pause
+        return
+    fi
+
+    if [[ -d /var/www/pterodactyl && -f /var/www/pterodactyl/artisan ]]; then
+        warning "Pterodactyl already appears to be installed."
+        pause
+        return
+    fi
+
+    read -rp "Enter Panel domain (example: panel.example.com): " PANEL_DOMAIN
+
+    if [[ -z "$PANEL_DOMAIN" ]]; then
+        error_msg "Domain cannot be empty."
+        pause
+        return
+    fi
+
+    echo
+    warning "Pterodactyl installation will modify this server."
+    read -rp "Type INSTALL to continue: " CONFIRM
+
+    if [[ "$CONFIRM" != "INSTALL" ]]; then
+        info "Installation cancelled."
+        pause
+        return
+    fi
+
+    echo
+    info "Updating package lists..."
+
+    if ! apt-get update; then
+        error_msg "Installation failed"
+        echo "Reason: apt update failed"
+        pause
+        return
+    fi
+
+    echo
+    info "Installing required packages..."
+
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        ca-certificates \
+        curl \
+        tar \
+        unzip \
+        git \
+        nginx \
+        mariadb-server \
+        redis-server \
+        php8.3 \
+        php8.3-cli \
+        php8.3-fpm \
+        php8.3-gd \
+        php8.3-mysql \
+        php8.3-mbstring \
+        php8.3-bcmath \
+        php8.3-xml \
+        php8.3-curl \
+        php8.3-zip \
+        php8.3-opcache \
+        php8.3-tokenizer
+    then
+        error_msg "Installation failed"
+        echo "Reason: Required packages could not be installed."
+        pause
+        return
+    fi
+
+    systemctl enable --now mariadb
+    systemctl enable --now redis-server
+    systemctl enable --now php8.3-fpm
+    systemctl enable --now nginx
+
+    echo
+    info "Creating Pterodactyl database..."
+
+    DB_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 28)"
+
+    if ! mariadb <<SQL
+CREATE DATABASE IF NOT EXISTS panel;
+CREATE USER IF NOT EXISTS 'pterodactyl'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+ALTER USER 'pterodactyl'@'127.0.0.1' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON panel.* TO 'pterodactyl'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
+    then
+        error_msg "Installation failed"
+        echo "Reason: MariaDB configuration failed"
+        pause
+        return
+    fi
+
+    echo
+    info "Downloading Pterodactyl Panel..."
+
+    mkdir -p /var/www/pterodactyl
+    cd /var/www/pterodactyl || return
+
+    rm -f panel.tar.gz
+
+    if ! curl -fLo panel.tar.gz \
+        https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz
+    then
+        error_msg "Installation failed"
+        echo "Reason: Pterodactyl Panel download failed."
+        pause
+        return
+    fi
+
+    if ! tar -xzf panel.tar.gz; then
+        error_msg "Installation failed"
+        echo "Reason: Panel archive extraction failed."
+        pause
+        return
+    fi
+
+    rm -f panel.tar.gz
+
+    chmod -R 755 storage bootstrap/cache 2>/dev/null || true
+
+    echo
+    info "Installing Composer..."
+
+    if ! command_exists composer; then
+        if ! curl -sS https://getcomposer.org/installer | \
+            php -- --install-dir=/usr/local/bin --filename=composer
+        then
+            error_msg "Installation failed"
+            echo "Reason: Composer installation failed."
+            pause
+            return
+        fi
+    fi
+
+    echo
+    info "Installing PHP dependencies..."
+
+    if ! COMPOSER_ALLOW_SUPERUSER=1 composer install \
+        --no-dev \
+        --optimize-autoloader \
+        --no-interaction
+    then
+        error_msg "Installation failed"
+        echo "Reason: Composer dependency installation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Creating environment file..."
+
+    if ! cp .env.example .env; then
+        error_msg "Installation failed"
+        echo "Reason: Unable to create .env"
+        pause
+        return
+    fi
+
+    if ! php artisan key:generate --force; then
+        error_msg "Installation failed"
+        echo "Reason: Laravel application key generation failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Pterodactyl environment setup"
+    echo "Follow the prompts shown below."
+    echo
+
+    if ! php artisan p:environment:setup; then
+        error_msg "Installation failed"
+        echo "Reason: Pterodactyl environment setup failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring database..."
+
+    if ! php artisan p:environment:database; then
+        error_msg "Installation failed"
+        echo "Reason: Pterodactyl database configuration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Configuring mail..."
+
+    if ! php artisan p:environment:mail; then
+        error_msg "Installation failed"
+        echo "Reason: Pterodactyl mail configuration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Running database migrations..."
+
+    if ! php artisan migrate --seed --force; then
+        error_msg "Installation failed"
+        echo "Reason: Database migration failed."
+        pause
+        return
+    fi
+
+    echo
+    info "Setting permissions..."
+
+    chown -R www-data:www-data /var/www/pterodactyl
+
+    echo
+    info "Creating Pterodactyl cron..."
+
+    cat > /etc/cron.d/pterodactyl <<'EOF'
+* * * * * www-data php /var/www/pterodactyl/artisan schedule:run >> /dev/null 2>&1
+EOF
+
+    chmod 644 /etc/cron.d/pterodactyl
+
+    echo
+    info "Creating queue worker..."
+
+    cat > /etc/systemd/system/pteroq.service <<'EOF'
+[Unit]
+Description=Pterodactyl Queue Worker
+After=redis-server.service
+Requires=redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php /var/www/pterodactyl/artisan queue:work --queue=high,standard,low --sleep=3 --tries=3
+StartLimitInterval=180
+StartLimitBurst=30
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now pteroq
+
+    echo
+    info "Creating Nginx configuration..."
+
+    cat > /etc/nginx/sites-available/pterodactyl.conf <<EOF
+server {
+    listen 80;
+    server_name ${PANEL_DOMAIN};
+
+    root /var/www/pterodactyl/public;
+
+    index index.php;
+
+    client_max_body_size 100m;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param PHP_VALUE "upload_max_filesize=100M \n post_max_size=100M";
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_intercept_errors off;
+        fastcgi_buffer_size 16k;
+        fastcgi_buffers 4 16k;
+        fastcgi_connect_timeout 300;
+        fastcgi_send_timeout 300;
+        fastcgi_read_timeout 300;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+EOF
+
+    rm -f /etc/nginx/sites-enabled/default
+    ln -sf /etc/nginx/sites-available/pterodactyl.conf \
+        /etc/nginx/sites-enabled/pterodactyl.conf
+
+    echo
+    info "Testing Nginx configuration..."
+
+    if ! nginx -t; then
+        error_msg "Installation failed"
+        echo "Reason: Nginx configuration test failed."
+        pause
+        return
+    fi
+
+    systemctl reload nginx
+
+    echo
+    info "Creating first Pterodactyl administrator..."
+    echo
+
+    if ! php artisan p:user:make; then
+        error_msg "Administrator creation failed."
+        echo "The Panel itself was installed, but the first admin user was not created."
+        pause
+        return
+    fi
+
+    echo
+    info "Running service checks..."
+
+    local failed=0
+
+    systemctl is-active --quiet nginx || failed=1
+    systemctl is-active --quiet mariadb || failed=1
+    systemctl is-active --quiet redis-server || failed=1
+    systemctl is-active --quiet php8.3-fpm || failed=1
+    systemctl is-active --quiet pteroq || failed=1
+
+    if [[ ! -f /var/www/pterodactyl/.env ]]; then
+        failed=1
+    fi
+
+    if (( failed != 0 )); then
+        error_msg "Installation completed with service errors."
+        echo "Check the services before using the Panel."
+        pause
+        return
+    fi
+
+    local SERVER_IP
+    SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
+    echo
+    success "Installation completed successfully."
+    echo
+    echo -e "${WHITE}Panel URL:${RESET} http://${PANEL_DOMAIN}"
+    echo -e "${WHITE}Server IP:${RESET} ${SERVER_IP:-Unknown}"
+    echo
+    warning "HTTPS is not configured by this installer."
+    warning "If using Cloudflare, configure your Cloudflare hostname separately."
+    echo
+    success "Pterodactyl Panel is ready."
+
+    pause
+}
+
+# ============================================================
+# PTERODACTYL STATUS
+# ============================================================
+
+pterodactyl_status() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                    📊 PANEL STATUS                       ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -d /var/www/pterodactyl ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    echo -e "${WHITE}Panel files:${RESET} $([[ -f /var/www/pterodactyl/artisan ]] && echo "Installed" || echo "Missing")"
+
+    if systemctl is-active --quiet nginx; then
+        success "Nginx: Online"
+    else
+        error_msg "Nginx: Offline"
+    fi
+
+    if systemctl is-active --quiet mariadb; then
+        success "MariaDB: Online"
+    else
+        error_msg "MariaDB: Offline"
+    fi
+
+    if systemctl is-active --quiet redis-server; then
+        success "Redis: Online"
+    else
+        error_msg "Redis: Offline"
+    fi
+
+    if systemctl is-active --quiet php8.3-fpm; then
+        success "PHP-FPM: Online"
+    else
+        error_msg "PHP-FPM: Offline"
+    fi
+
+    if systemctl is-active --quiet pteroq; then
+        success "Queue Worker: Online"
+    else
+        error_msg "Queue Worker: Offline"
+    fi
+
+    echo
+    pause
+}
+
+# ============================================================
+# PTERODACTYL INFORMATION
+# ============================================================
+
+pterodactyl_information() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                 ℹ️  PANEL INFORMATION                    ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /var/www/pterodactyl/artisan ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    local PANEL_VERSION="Unknown"
+
+    cd /var/www/pterodactyl 2>/dev/null || true
+
+    if [[ -f composer.json ]]; then
+        PANEL_VERSION="$(grep -m1 '"version"' composer.json | sed 's/.*"version":[[:space:]]*"\([^"]*\)".*/\1/')"
+    fi
+
+    echo "Panel Directory : /var/www/pterodactyl"
+    echo "Panel Version   : ${PANEL_VERSION}"
+    echo "PHP             : $(php -v 2>/dev/null | head -n1)"
+    echo "Nginx           : $(nginx -v 2>&1)"
+    echo "MariaDB         : $(mariadb --version 2>/dev/null | head -n1)"
+    echo "Redis           : $(redis-server --version 2>/dev/null | head -n1)"
+
+    echo
+    pause
+}
+
+# ============================================================
+# PTERODACTYL UNINSTALL
+# ============================================================
+
+uninstall_pterodactyl() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}               🗑️  UNINSTALL PTERODACTYL                  ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -d /var/www/pterodactyl ]]; then
+        info "Pterodactyl Panel does not appear to be installed."
+        pause
+        return
+    fi
+
+    warning "This will remove:"
+    echo "  • /var/www/pterodactyl"
+    echo "  • Pterodactyl queue worker"
+    echo "  • Pterodactyl cron"
+    echo "  • Pterodactyl Nginx configuration"
+    echo "  • Pterodactyl database"
+    echo "  • Pterodactyl database user"
+    echo
+    warning "PHP, Nginx, MariaDB and Redis will NOT be removed."
+    echo
+
+    read -rp "Type UNINSTALL to continue: " CONFIRM
+
+    if [[ "$CONFIRM" != "UNINSTALL" ]]; then
+        info "Uninstall cancelled."
+        pause
+        return
+    fi
+
+    echo
+    info "Stopping Pterodactyl queue..."
+
+    systemctl disable --now pteroq 2>/dev/null || true
+
+    rm -f /etc/systemd/system/pteroq.service
+    systemctl daemon-reload
+
+    echo
+    info "Removing cron..."
+
+    rm -f /etc/cron.d/pterodactyl
+
+    echo
+    info "Removing Nginx configuration..."
+
+    rm -f /etc/nginx/sites-enabled/pterodactyl.conf
+    rm -f /etc/nginx/sites-available/pterodactyl.conf
+
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+
+    echo
+    info "Removing database..."
+
+    if mariadb <<'SQL'
+DROP DATABASE IF EXISTS panel;
+DROP USER IF EXISTS 'pterodactyl'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
+    then
+        success "Database removed."
+    else
+        error_msg "Database removal failed."
+    fi
+
+    echo
+    info "Removing Panel files..."
+
+    rm -rf /var/www/pterodactyl
+
+    if [[ ! -d /var/www/pterodactyl ]]; then
+        success "Pterodactyl files removed."
+    else
+        error_msg "Panel files could not be completely removed."
+        pause
+        return
+    fi
+
+    echo
+    success "Pterodactyl Panel uninstalled successfully."
+
+    pause
+}
+
+# ============================================================
+# PTERODACTYL MENU
+# ============================================================
+
+pterodactyl_menu() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                    🐦 PTERODACTYL MANAGER                ${WHITE}║${RESET}"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo
+        echo -e " ${WHITE}[1]${RESET} 📦 Install Pterodactyl Panel"
+        echo -e " ${WHITE}[2]${RESET} 📊 Panel Status"
+        echo -e " ${WHITE}[3]${RESET} ℹ️  Panel Information"
+        echo -e " ${WHITE}[4]${RESET} 🗑️  Uninstall Pterodactyl Panel"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+        echo
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_pterodactyl ;;
+            2) pterodactyl_status ;;
+            3) pterodactyl_information ;;
+            4) uninstall_pterodactyl ;;
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# USER MANAGER
+# ============================================================
+
+create_admin_user() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                    ➕ CREATE ADMIN USER                   ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /var/www/pterodactyl/artisan ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd /var/www/pterodactyl || return
+
+    if php artisan p:user:make --help >/dev/null 2>&1; then
+        php artisan p:user:make
+    else
+        error_msg "Pterodactyl user command is unavailable."
+    fi
+
+    pause
+}
+
+create_normal_user() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                   ➕ CREATE NORMAL USER                   ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /var/www/pterodactyl/artisan ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd /var/www/pterodactyl || return
+
+    warning "The standard Pterodactyl user creation command may ask whether"
+    warning "the account should be an administrator."
+    echo
+
+    php artisan p:user:make
+
+    pause
+}
+
+list_users() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                       📋 LIST USERS                       ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /var/www/pterodactyl/artisan ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    cd /var/www/pterodactyl || return
+
+    php artisan tinker --execute='
+$users = App\Models\User::all();
+foreach ($users as $user) {
+    echo $user->id . " | " . $user->email . " | " . $user->username . PHP_EOL;
+}
+'
+
+    echo
+    pause
+}
+
+delete_user() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                      🗑️  DELETE USER                     ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /var/www/pterodactyl/artisan ]]; then
+        error_msg "Pterodactyl Panel is not installed."
+        pause
+        return
+    fi
+
+    read -rp "Enter user ID: " USER_ID
+
+    if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
+        error_msg "Invalid user ID."
+        pause
+        return
+    fi
+
+    echo
+    warning "You are about to delete user ID ${USER_ID}."
+    read -rp "Type DELETE to continue: " CONFIRM
+
+    if [[ "$CONFIRM" != "DELETE" ]]; then
+        info "Cancelled."
+        pause
+        return
+    fi
+
+    cd /var/www/pterodactyl || return
+
+    php artisan tinker --execute="
+\$user = App\Models\User::find(${USER_ID});
+if (\$user) {
+    \$user->delete();
+    echo 'User deleted successfully.' . PHP_EOL;
+} else {
+    echo 'User not found.' . PHP_EOL;
+}
+"
+
+    pause
+}
+
+user_menu() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                       👤 USER MANAGER                     ${WHITE}║${RESET}"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo
+        echo -e " ${WHITE}[1]${RESET} ➕ Create Admin User"
+        echo -e " ${WHITE}[2]${RESET} ➕ Create Normal User"
+        echo -e " ${WHITE}[3]${RESET} 📋 List Users"
+        echo -e " ${WHITE}[4]${RESET} 🗑️  Delete User"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+        echo
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) create_admin_user ;;
+            2) create_normal_user ;;
+            3) list_users ;;
+            4) delete_user ;;
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# SERVER INFORMATION
+# ============================================================
+
+server_information() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                    🖥️  SERVER INFORMATION                 ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    local hostname_value
+    local os_value
+    local kernel_value
+    local cpu_model
+    local cpu_cores
+    local ram_value
+    local disk_value
+    local uptime_value
+    local public_ipv4
+    local private_ipv4
+    local public_ipv6
+
+    hostname_value="$(hostname 2>/dev/null || echo "Unknown")"
+
+    os_value="$(
+        . /etc/os-release 2>/dev/null
+        echo "${PRETTY_NAME:-Unknown}"
+    )"
+
+    kernel_value="$(uname -r 2>/dev/null || echo "Unknown")"
+
+    cpu_model="$(
+        lscpu 2>/dev/null |
+        awk -F: '/Model name/ {gsub(/^[ \t]+/, "", $2); print $2; exit}'
+    )"
+
+    cpu_model="${cpu_model:-Unknown}"
+
+    cpu_cores="$(
+        nproc 2>/dev/null || echo "Unknown"
+    )"
+
+    ram_value="$(
+        free -h 2>/dev/null |
+        awk '/^Mem:/ {print $2}'
+    )"
+
+    ram_value="${ram_value:-Unknown}"
+
+    disk_value="$(
+        df -h / 2>/dev/null |
+        awk 'NR==2 {print $2 " total / " $3 " used / " $4 " free"}'
+    )"
+
+    disk_value="${disk_value:-Unknown}"
+
+    uptime_value="$(uptime -p 2>/dev/null || echo "Unknown")"
+
+    public_ipv4="$(
+        curl -4 -fsS --max-time 5 https://api.ipify.org 2>/dev/null ||
+        echo "Unknown"
+    )"
+
+    private_ipv4="$(
+        ip -4 addr 2>/dev/null |
+        awk '/inet / {
+            split($2,a,"/");
+            if (a[1] ~ /^10\./ ||
+                a[1] ~ /^192\.168\./ ||
+                a[1] ~ /^172\.(1[6-9]|2[0-9]|3[0-1])\./) {
+                print a[1];
+                exit
+            }
+        }'
+    )"
+
+    private_ipv4="${private_ipv4:-None detected}"
+
+    public_ipv6="$(
+        curl -6 -fsS --max-time 5 https://api64.ipify.org 2>/dev/null ||
+        echo "Unknown"
+    )"
+
+    echo -e "${CYAN}Hostname       :${RESET} $hostname_value"
+    echo -e "${CYAN}OS             :${RESET} $os_value"
+    echo -e "${CYAN}Kernel         :${RESET} $kernel_value"
+    echo -e "${CYAN}CPU            :${RESET} $cpu_model"
+    echo -e "${CYAN}CPU Cores      :${RESET} $cpu_cores"
+    echo -e "${CYAN}RAM            :${RESET} $ram_value"
+    echo -e "${CYAN}Disk           :${RESET} $disk_value"
+    echo -e "${CYAN}Uptime         :${RESET} $uptime_value"
+    echo -e "${CYAN}Public IPv4    :${RESET} $public_ipv4"
+    echo -e "${CYAN}Private IPv4   :${RESET} $private_ipv4"
+    echo -e "${CYAN}Public IPv6    :${RESET} $public_ipv6"
+    echo -e "${CYAN}IP Type        :${RESET} Unknown / Not verified"
+
+    echo
+    pause
+}
+
+# ============================================================
+# NETWORK TOOLS
+# ============================================================
+
+ping_cloudflare() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                     📡 PING CLOUDFLARE                   ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    ping -c 5 -W 2 1.1.1.1
+
+    echo
+    pause
+}
+
+ping_google() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                       📡 PING GOOGLE                     ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    ping -c 5 -W 2 8.8.8.8
+
+    echo
+    pause
+}
+
+dns_test() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                        🌍 DNS TEST                        ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if command_exists resolvectl; then
+        resolvectl status
+    else
+        echo "DNS configuration:"
+        cat /etc/resolv.conf
+    fi
+
+    echo
+    echo "Testing DNS resolution..."
+    echo
+
+    if getent hosts google.com; then
+        success "DNS resolution is working."
+    else
+        error_msg "DNS resolution failed."
+    fi
+
+    echo
+    pause
+}
+
+network_interfaces() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                    🔌 NETWORK INTERFACES                  ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    ip -br addr
+
+    echo
+    pause
+}
+
+routing_table() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                      🛣️  ROUTING TABLE                    ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    ip route
+
+    echo
+    pause
+}
+
+download_speed_test() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                    📥 DOWNLOAD SPEED TEST                 ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    info "Testing download speed from Cloudflare..."
+    echo
+
+    if ! command_exists curl; then
+        error_msg "curl is not installed."
+        pause
+        return
+    fi
+
+    curl -L \
+        -o /dev/null \
+        -w "\n\nDownloaded: %{size_download} bytes\nTime: %{time_total} seconds\nSpeed: %{speed_download} bytes/sec\n" \
+        --max-time 30 \
+        https://speed.cloudflare.com/__down?bytes=10000000
+
+    echo
+    pause
+}
+
+full_network_diagnostic() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                 🔍 FULL NETWORK DIAGNOSTIC                ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    echo "===== HOSTNAME ====="
+    hostname
+
+    echo
+    echo "===== INTERFACES ====="
+    ip -br addr
+
+    echo
+    echo "===== ROUTES ====="
+    ip route
+
+    echo
+    echo "===== DNS ====="
+    cat /etc/resolv.conf
+
+    echo
+    echo "===== CLOUDFLARE ====="
+    ping -c 4 -W 2 1.1.1.1
+
+    echo
+    echo "===== GOOGLE ====="
+    ping -c 4 -W 2 8.8.8.8
+
+    echo
+    echo "===== DNS RESOLUTION ====="
+    getent hosts google.com || true
+
+    if command_exists curl; then
+        echo
+        echo "===== PUBLIC IPv4 ====="
+        curl -4 -fsS --max-time 5 https://api.ipify.org || true
+        echo
+    fi
+
+    echo
+    pause
+}
+
+network_menu() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                       🌐 NETWORK TOOLS                    ${WHITE}║${RESET}"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo
+        echo -e " ${WHITE}[1]${RESET} 📡 Ping Cloudflare"
+        echo -e " ${WHITE}[2]${RESET} 📡 Ping Google"
+        echo -e " ${WHITE}[3]${RESET} 🌍 DNS Test"
+        echo -e " ${WHITE}[4]${RESET} 🔌 Network Interfaces"
+        echo -e " ${WHITE}[5]${RESET} 🛣️  Routing Table"
+        echo -e " ${WHITE}[6]${RESET} 📥 Download Speed Test"
+        echo -e " ${WHITE}[7]${RESET} 🔍 Full Network Diagnostic"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+        echo
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) ping_cloudflare ;;
+            2) ping_google ;;
+            3) dns_test ;;
+            4) network_interfaces ;;
+            5) routing_table ;;
+            6) download_speed_test ;;
+            7) full_network_diagnostic ;;
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# CLOUDFLARED
+# ============================================================
+
+install_cloudflared() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                  ☁️  INSTALL CLOUDFLARED                  ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if command_exists cloudflared; then
+        warning "Cloudflared is already installed."
+        cloudflared --version
+        pause
+        return
+    fi
+
+    local arch
+    arch="$(uname -m)"
+
+    case "$arch" in
+        x86_64|amd64)
+            CLOUDFLARED_ARCH="amd64"
+            ;;
+        aarch64|arm64)
+            CLOUDFLARED_ARCH="arm64"
+            ;;
+        armv7l)
+            CLOUDFLARED_ARCH="arm"
+            ;;
+        *)
+            error_msg "Unsupported CPU architecture: $arch"
+            pause
+            return
+            ;;
+    esac
+
+    info "Downloading Cloudflared..."
+
+    if curl -fL \
+        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CLOUDFLARED_ARCH}" \
+        -o /usr/local/bin/cloudflared
+    then
+        chmod +x /usr/local/bin/cloudflared
+        success "Cloudflared installed successfully."
+        echo
+        cloudflared --version
+    else
+        error_msg "Installation failed"
+        echo "Reason: Cloudflared download failed."
+    fi
+
+    pause
+}
+
+install_tailscale() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                   🔗 INSTALL TAILSCALE                    ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if command_exists tailscale; then
+        warning "Tailscale is already installed."
+        tailscale version
+        pause
+        return
+    fi
+
+    info "Installing Tailscale..."
+
+    if curl -fsSL https://tailscale.com/install.sh | sh; then
+        systemctl enable --now tailscaled
+        success "Tailscale installed successfully."
+        echo
+        info "Run 'tailscale up' to connect this server to your Tailnet."
+    else
+        error_msg "Installation failed"
+        echo "Reason: Tailscale installer failed."
+    fi
+
+    pause
+}
+
+uninstall_cloudflared() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                  🗑️  UNINSTALL CLOUDFLARED                ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if [[ ! -f /usr/local/bin/cloudflared ]]; then
+        info "Cloudflared is not installed."
+        pause
+        return
+    fi
+
+    read -rp "Type UNINSTALL to continue: " CONFIRM
+
+    if [[ "$CONFIRM" != "UNINSTALL" ]]; then
+        info "Cancelled."
+        pause
+        return
+    fi
+
+    systemctl disable --now cloudflared 2>/dev/null || true
+    rm -f /usr/local/bin/cloudflared
+
+    if [[ ! -f /usr/local/bin/cloudflared ]]; then
+        success "Cloudflared uninstalled successfully."
+    else
+        error_msg "Cloudflared removal failed."
+    fi
+
+    pause
+}
+
+uninstall_tailscale() {
+    clear_screen
+    get_title
+    echo -e "${WHITE}║${RESET}                   🗑️  UNINSTALL TAILSCALE                 ${WHITE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+
+    if ! command_exists tailscale; then
+        info "Tailscale is not installed."
+        pause
+        return
+    fi
+
+    read -rp "Type UNINSTALL to continue: " CONFIRM
+
+    if [[ "$CONFIRM" != "UNINSTALL" ]]; then
+        info "Cancelled."
+        pause
+        return
+    fi
+
+    systemctl disable --now tailscaled 2>/dev/null || true
+
+    if apt-get remove --purge -y tailscale; then
+        success "Tailscale uninstalled successfully."
+    else
+        error_msg "Tailscale removal failed."
+    fi
+
+    pause
+}
+
+# ============================================================
+# PACKAGES MENU
+# ============================================================
+
+packages_menu() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                         📦 PACKAGES                       ${WHITE}║${RESET}"
+        echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+        echo
+        echo -e " ${WHITE}[1]${RESET} ☁️  Install Cloudflared"
+        echo -e " ${WHITE}[2]${RESET} 🔗 Install Tailscale"
+        echo -e " ${WHITE}[3]${RESET} 🗑️  Uninstall Cloudflared"
+        echo -e " ${WHITE}[4]${RESET} 🗑️  Uninstall Tailscale"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+        echo
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1) install_cloudflared ;;
+            2) install_tailscale ;;
+            3) uninstall_cloudflared ;;
+            4) uninstall_tailscale ;;
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# HUB INFORMATION
+# ============================================================
+
+hub_information() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                  ℹ️  APEX HUB INFORMATION                 ${WHITE}║${RESET}"
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+        echo
+
+        echo -e "${BOLD}${WHITE}APEX CLOULD${RESET}"
+        echo "Control Hub"
+        echo
+        echo "Version : ${VERSION}"
+        echo -e "Status  : ${GREEN}● Online${RESET}"
+        echo "Brand   : ${BRAND}"
+        echo "Discord : ${DISCORD}"
+
+        echo
+        echo -e " ${WHITE}[0]${RESET} Back"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            0) return ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# QUICK LINKS
+# ============================================================
+
+quick_links() {
+    while true; do
+        clear_screen
+        get_title
+        echo -e "${WHITE}║${RESET}                       🔗 QUICK LINKS                      ${WHITE}║${RESET}"
+        echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+        echo
+
+        echo -e " ${WHITE}[1]${RESET} 💬 APEX CLOULD Discord"
+        echo -e " ${WHITE}[0]${RESET} ↩️  Back"
+
+        echo
+        read -rp " Select an option ❯ " choice
+
+        case "$choice" in
+            1)
+                echo
+                echo -e "${CYAN}${DISCORD}${RESET}"
+                echo
+                pause
+                ;;
+            0)
+                return
+                ;;
+            *)
+                error_msg "Invalid option."
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# ============================================================
+# START
+# ============================================================
+
+require_root
+
+main_menu
